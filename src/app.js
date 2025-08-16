@@ -1,18 +1,28 @@
 // src/app.js
 import express from "express";
 import cors from "cors";
+import path from "path";
 import routes from "./routes/index.js";
 
 const app = express();
 
-// Middlewares globales
-app.use(cors());
+// Configuración CORS para credenciales
+app.use(
+  cors({
+    origin: "http://localhost:5173", // URL de tu frontend
+    credentials: true,               // Permite envío de cookies/autenticación
+  })
+);
+
 app.use(express.json()); // Para recibir JSON en las peticiones
 
-// Rutas
-app.use("/api", routes); // Todas tus rutas irán bajo /api
+// Servir archivos estáticos (códigos QR)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Ruta raíz (opcional)
+// Rutas
+app.use("/api", routes);
+
+// Ruta raíz
 app.get("/", (req, res) => {
   res.send("🚀 API funcionando");
 });

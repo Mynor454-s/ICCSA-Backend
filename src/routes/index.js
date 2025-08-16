@@ -10,6 +10,7 @@ import quoteServiceRoutes from "./quoteService.routes.js";
 import paymentRoutes from "./payment.routes.js";
 import quoteRoutes from "./quote.routes.js";
 import quoteItemRoutes from "./quoteItem.routes.js";
+import roleRoutes from "./role.routes.js";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/quote-services", quoteServiceRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/quotes", quoteRoutes);
 router.use("/quote-items", quoteItemRoutes);
+router.use("/roles", roleRoutes);
 
 export default router;
