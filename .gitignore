@@ -131,3 +131,9 @@ dist
 
 # Replit debugger
 .breakpoints
+
+# Uploads directory - archivos generados dinámicamente
+uploads/
+# Mantener la estructura de directorios pero ignorar contenido
+!uploads/.gitkeep
+!uploads/qr/.gitkeep
