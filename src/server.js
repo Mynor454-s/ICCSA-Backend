@@ -12,7 +12,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 async function startServer() {
   try {
     await sequelize.authenticate();
-    console.log("Conexión a Railway exitosa");
+    console.log("Conexión a local PostgreSQL establecida correctamente");
 
     const [result] = await sequelize.query("SELECT NOW()");
     console.log("Respuesta desde PostgreSQL:", result);

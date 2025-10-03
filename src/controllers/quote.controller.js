@@ -9,6 +9,7 @@ import {
   Product,
   Material,
   Service,
+  Payment,
 } from "../models/index.js";
 import { generateQuoteQR, updateQuoteQR, getQRDisplayInfo } from "../utils/qrGenerator.js";
 
@@ -207,15 +208,29 @@ export const getQuoteById = async (req, res) => {
   }
 };
 
-// Actualizar estado de una cotización
+// Actualizar estado de una cotización con validaciones de pago
 export const updateQuoteStatus = async (req, res) => {
   try {
     const { status } = req.body;
     const quote = await Quote.findByPk(req.params.id, {
-      include: [{ model: Client, attributes: ["name"] }]
+      include: [
+        { model: Client, attributes: ["name"] },
+        { model: Payment }
+      ]
     });
 
     if (!quote) return res.status(404).json({ message: "Cotización no encontrada" });
+
+    // Validar transiciones de estado basadas en pagos
+    const validationResult = await validateStatusChange(quote, status);
+    if (!validationResult.isValid) {
+      return res.status(400).json({ 
+        message: validationResult.message,
+        currentStatus: quote.status,
+        requestedStatus: status,
+        paymentInfo: validationResult.paymentInfo
+      });
+    }
 
     const oldStatus = quote.status;
     quote.status = status;
@@ -236,12 +251,76 @@ export const updateQuoteStatus = async (req, res) => {
     res.json({ 
       message: "Estado actualizado correctamente", 
       status,
-      qrCodeUrl: quote.qrCodeUrl 
+      qrCodeUrl: quote.qrCodeUrl,
+      paymentInfo: validationResult.paymentInfo
     });
   } catch (error) {
     console.error("Error actualizando estado:", error);
     res.status(500).json({ message: "Error del servidor" });
   }
+};
+
+// Función para validar cambios de estado basados en pagos
+const validateStatusChange = async (quote, newStatus) => {
+  const totalPaid = quote.Payments?.reduce((sum, payment) => 
+    sum + parseFloat(payment.amount), 0) || 0;
+  
+  const quoteTotal = parseFloat(quote.total);
+  const isFullyPaid = totalPaid >= quoteTotal;
+  const remainingAmount = quoteTotal - totalPaid;
+
+  const paymentInfo = {
+    totalQuote: quoteTotal,
+    totalPaid,
+    remainingAmount,
+    isFullyPaid
+  };
+
+  // Reglas de validación
+  switch (newStatus) {
+    case "ENTREGADA":
+      if (!isFullyPaid) {
+        return {
+          isValid: false,
+          message: `No se puede marcar como ENTREGADA. Faltan $${remainingAmount.toFixed(2)} por pagar`,
+          paymentInfo
+        };
+      }
+      if (quote.status !== "PAGADA") {
+        return {
+          isValid: false,
+          message: `Para marcar como ENTREGADA, la cotización debe estar en estado PAGADA (actual: ${quote.status})`,
+          paymentInfo
+        };
+      }
+      break;
+
+    case "PAGADA":
+      if (!isFullyPaid) {
+        return {
+          isValid: false,
+          message: `No se puede marcar como PAGADA. Faltan $${remainingAmount.toFixed(2)} por pagar`,
+          paymentInfo
+        };
+      }
+      break;
+
+    case "CREADA":
+      if (totalPaid > 0) {
+        return {
+          isValid: false,
+          message: `No se puede regresar a CREADA cuando ya hay pagos registrados ($${totalPaid.toFixed(2)})`,
+          paymentInfo
+        };
+      }
+      break;
+  }
+
+  return {
+    isValid: true,
+    message: "Cambio de estado válido",
+    paymentInfo
+  };
 };
 
 // Regenerar código QR para una cotización existente
