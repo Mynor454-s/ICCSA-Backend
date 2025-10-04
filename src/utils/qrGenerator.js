@@ -30,7 +30,7 @@ export const generateQuoteQR = async (quoteData) => {
     const qrInfo = {
       cotizacion_id: quoteData.id,
       cliente: quoteData.clientName,
-      total: `$${quoteData.total}`,
+      total: `Q${quoteData.total}`,
       estado: quoteData.status,
       fecha_entrega: quoteData.deliveryDate || 'No especificada',
       fecha_creacion: new Date().toLocaleDateString('es-ES'),

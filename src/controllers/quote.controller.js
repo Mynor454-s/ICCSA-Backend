@@ -12,6 +12,7 @@ import {
   Payment,
 } from "../models/index.js";
 import { generateQuoteQR, updateQuoteQR, getQRDisplayInfo } from "../utils/qrGenerator.js";
+import { sendQuoteStatusEmail } from "../services/emailService.js";
 
 // Crear una cotización completa
 export const createQuote = async (req, res) => {
@@ -214,7 +215,7 @@ export const updateQuoteStatus = async (req, res) => {
     const { status } = req.body;
     const quote = await Quote.findByPk(req.params.id, {
       include: [
-        { model: Client, attributes: ["name"] },
+        { model: Client, attributes: ["name", "email"] }, // ✅ Agregado "email"
         { model: Payment }
       ]
     });
@@ -245,6 +246,21 @@ export const updateQuoteStatus = async (req, res) => {
       } catch (qrError) {
         console.error("Error regenerando QR:", qrError);
         // No fallar la operación si el QR falla
+      }
+
+      // 📧 Enviar email automático al cliente cuando cambia el estado
+      try {
+        console.log(`📬 Enviando notificación de cambio de estado: ${oldStatus} → ${status}`);
+        const emailResult = await sendQuoteStatusEmail(quote.Client, quote);
+        
+        if (emailResult.success) {
+          console.log(`✅ Email enviado exitosamente a ${emailResult.recipient}`);
+        } else {
+          console.log(`⚠️  Email no enviado: ${emailResult.reason || emailResult.error}`);
+        }
+      } catch (emailError) {
+        console.error("❌ Error enviando email de notificación:", emailError.message);
+        // No fallar la operación si el email falla
       }
     }
 
@@ -327,7 +343,7 @@ const validateStatusChange = async (quote, newStatus) => {
 export const regenerateQuoteQR = async (req, res) => {
   try {
     const quote = await Quote.findByPk(req.params.id, {
-      include: [{ model: Client, attributes: ["name"] }]
+      include: [{ model: Client, attributes: ["name", "email"] }] // ✅ Agregado "email"
     });
 
     if (!quote) return res.status(404).json({ message: "Cotización no encontrada" });
@@ -355,7 +371,7 @@ export const regenerateQuoteQR = async (req, res) => {
 export const getQuoteQRInfo = async (req, res) => {
   try {
     const quote = await Quote.findByPk(req.params.id, {
-      include: [{ model: Client, attributes: ["name"] }]
+      include: [{ model: Client, attributes: ["name", "email"] }] // ✅ Agregado "email"
     });
 
     if (!quote) return res.status(404).json({ message: "Cotización no encontrada" });

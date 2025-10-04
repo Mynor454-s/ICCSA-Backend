@@ -1,6 +1,8 @@
 import app from "./app.js";
 import dotenv from "dotenv";
 import { sequelize, Role, User } from "./models/index.js";
+import { checkEmailConfig } from "./services/emailService.js";
+import seedTestData from "./config/seedData.js";
 
 dotenv.config();
 
@@ -44,8 +46,23 @@ async function startServer() {
       console.log(`Usuario administrador creado: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
     }
 
+    // Cargar datos de prueba (solo en desarrollo)
+    if (process.env.NODE_ENV !== 'production') {
+      await seedTestData();
+    }
+
     app.listen(PORT, () => {
       console.log(`Servidor escuchando en http://localhost:${PORT}`);
+      
+      // Verificar configuración de email al iniciar
+      console.log("\n📧 Verificando configuración de email...");
+      const emailConfigured = checkEmailConfig();
+      
+      if (emailConfigured) {
+        console.log("✅ Email configurado correctamente - Notificaciones automáticas habilitadas");
+      } else {
+        console.log("⚠️  Email no configurado - Notificaciones automáticas deshabilitadas");
+      }
     });
   } catch (error) {
     console.error("Error al conectar con la base de datos:", error);
